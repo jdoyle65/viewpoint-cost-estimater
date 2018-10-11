@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    form {
+      margin: 5px;
+    }
+
+    input[type="text"] {
+      margin-bottom: 5px;
+    }
+  </style>
+</head>
+<body>
+  <form id="options-form">
+    <label for="downpaymentPercent">
+      Downpayment %
+    </label>
+    <input type="text" name="downpaymentPercent" />
+    <label for="interestRate">
+      Interest Rate
+    </label>
+    <input type="text" name="interestRate" />
+    <label for="taxRate">
+      Property Tax Rate
+    </label>
+    <input type="text" name="taxRate" />
+    <label for="period">
+      Amoritization Period (Years)
+    </label>
+    <input type="text" name="period" />
+    <label for="estimatedUtilities">
+      Estimated Utilities
+    </label>
+    <input type="text" name="estimatedUtilities" />
+  </form>
+  <button id="save-button">Save</button>
+  <script src="popup.js"></script>
+</body>
+</html>
