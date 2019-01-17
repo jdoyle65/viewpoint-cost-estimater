@@ -39,12 +39,12 @@ async function updateCosts(mutations) {
     }
   }
 
-  const priceStatusElement = cutsheet.querySelector('.price-status');
-  const priceElement = cutsheet.querySelector('span.price');
+  const cutsheetMainListingInfoElement = cutsheet.querySelector('.cutsheet-main-listing-info');
+  const priceElement = cutsheet.querySelector('span.overlay-price');
   let monthlyElement = cutsheet.querySelector('div.monthly-calculation');
 
   if (!monthlyElement) {
-    monthlyElement = insertMonthlyElementIntoCutsheet(priceStatusElement);
+    monthlyElement = insertMonthlyElementIntoCutsheet(cutsheetMainListingInfoElement);
   }
 
   const monthlyTotal = monthlyElement.querySelector('div.monthly-total');
@@ -129,6 +129,7 @@ function insertMonthlyElementIntoCutsheet(insertAfterElement) {
   element.style.marginBottom = '5px';
   element.style.padding = '5px 10px';
   element.style.fontWeight = '300';
+  element.style.flex = '0 0 66.6%';
 
   insertRow(element, 'monthly-total', 'TOTAL:', '$0');
   insertRow(element, 'monthly-mortgage', 'Mortage:', '$0');
@@ -167,12 +168,16 @@ function insertRow(element, className, leftText, rightText) {
  * @returns {number}
  */
 function findAssessedValue(parentElement, defaultValue) {
-  for(let e of parentElement.querySelectorAll('small')) {
-    if (e.innerText.match(/[0-9]{4} Assessment:/)) {
-      return parseAssessedValue(e.innerText);
-    }
-  }
+  const assessmentElement = parentElement.querySelector('span.assessment');
+  
+  if (assessmentElement) {
+   const assessedValueElement = assessmentElement.nextElementSibling.querySelector('span.separated');
 
+   if (assessedValueElement) {
+     return parseAssessedValue(assessedValueElement.innerText);
+   }
+  }
+  
   return defaultValue;
 }
 
