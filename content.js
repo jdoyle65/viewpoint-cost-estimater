@@ -1,6 +1,6 @@
 "use strict";
 
-const storageKeys = ['downpayment', 'interest', 'taxRate', 'estimatedUtilities', 'period'];
+const storageKeys = ['downpayment', 'interest', 'taxRate', 'estimatedUtilities', 'period', 'useAssessedValue'];
 let cutsheet = document.documentElement.querySelector('.overview,#v3-cutsheet');
 const observer = new MutationObserver((mutations, observer) => updateCosts(mutations));
 
@@ -46,6 +46,11 @@ async function updateCosts(mutations) {
   if (!monthlyElement) {
     monthlyElement = insertMonthlyElementIntoCutsheet(priceStatusElement);
   }
+
+  const monthlyTotal = monthlyElement.querySelector('div.monthly-total');
+  const monthlyMortgage = monthlyElement.querySelector('div.monthly-mortgage');
+  const monthlyTax = monthlyElement.querySelector('div.monthly-tax');
+  const monthlyUtils = monthlyElement.querySelector('div.monthly-utils');
   
   if (priceElement && priceElement.innerText !== undefined && monthlyElement) {
     const priceText = priceElement.innerText.split('\n')[0];
@@ -54,7 +59,11 @@ async function updateCosts(mutations) {
     if (price) {
       const assessedValue = findAssessedValue(cutsheet, price);
       const calculatedCost = await calculateMonthlyCost(price, assessedValue);
-      monthlyElement.innerHTML = `${formatPrice(calculatedCost.total)}/month<br>Mortgage: ${formatPrice(calculatedCost.mortgage)}<br>Tax: ${formatPrice(calculatedCost.taxes)}`;
+
+      monthlyTotal.innerText = formatPrice(calculatedCost.total);
+      monthlyMortgage.innerText = formatPrice(calculatedCost.mortgage);
+      monthlyTax.innerText = formatPrice(calculatedCost.taxes);
+      monthlyUtils.innerText = formatPrice(calculatedCost.utils);
     }
   }
 }
@@ -68,19 +77,40 @@ async function updateCosts(mutations) {
 async function calculateMonthlyCost(price, assessedValue) {
   return new Promise((resolve, reject) => {
     chrome.storage.sync.get(storageKeys, (data) => {
-      const { downpayment, interest, taxRate, estimatedUtilities, period } = data;
-      const principal = price - (price * (downpayment / 100));
+
+      const { downpayment, interest, taxRate, estimatedUtilities, period, useAssessedValue } = data;
+
+      // Homes over $1 million are subject to 20% downpayment
+      if (price > 1000000 && downpayment < 20) {
+        downpayment = 20;
+      }
+
+      let principal;
+
+      if (price > 500000 && price <= 1000000 && downpayment <= 10) {
+        let defaultInsurance = 0;
+        principal = 500000 - (500000 * 0.05);
+        defaultInsurance += calculateDefaultInsurance(principal, 5);
+        principal += (price - 500000 * 0.01);
+        defaultInsurance += calculateDefaultInsurance(price - 500000 * 0.01, 10);
+      } else {
+        principal = price - (price * (downpayment / 100));
+        principal = principal + calculateDefaultInsurance(principal, downpayment);
+      }
+
       const years = period;
       
       const mortgagePayment = calculateMortgagePayment(principal, years, interest);
-      const taxes = (taxRate / 100 / 12) * assessedValue;
+      const taxes = (taxRate / 100 / 12) * ( useAssessedValue ? assessedValue : price);
       const utilities = estimatedUtilities;
       
       return resolve({
         total: mortgagePayment + taxes + utilities,
         mortgage: mortgagePayment,
-        taxes: taxes
+        taxes: taxes,
+        utils: estimatedUtilities
       });
+
     });
   })
 }
@@ -100,7 +130,32 @@ function insertMonthlyElementIntoCutsheet(insertAfterElement) {
   element.style.padding = '5px 10px';
   element.style.fontWeight = '300';
 
+  insertRow(element, 'monthly-total', 'TOTAL:', '$0');
+  insertRow(element, 'monthly-mortgage', 'Mortage:', '$0');
+  insertRow(element, 'monthly-tax', 'Tax:', '$0');
+  insertRow(element, 'monthly-utils', 'Utilities:', '$0');
+
   return element;
+}
+
+function insertRow(element, className, leftText, rightText) {
+  const row = document.createElement('div');
+  row.style.display = 'flex';
+  row.style.flexDirection = 'row';
+  row.style.justifyContent = 'space-between';
+
+  const left = document.createElement('div');
+  const right = document.createElement('div');
+  left.innerText = leftText;
+  right.innerText = rightText;
+  right.classList.add(className);
+
+  row.appendChild(left);
+  row.appendChild(right);
+  
+  element.appendChild(row);
+
+  return row;
 }
 
 /**
@@ -167,4 +222,16 @@ function parsePrice(string) {
 
 function parseAssessedValue(string) {
   return parsePrice(string.replace(/[0-9]{4} Assessment:/, ''));
+}
+
+function calculateDefaultInsurance(price, downpayment) {
+  if (downpayment >= 5 && downpayment < 10) {
+    return price * 0.04;
+  } else if (downpayment >= 10 && downpayment < 15) {
+    return price * 0.031;
+  } else if (downpayment >= 15 && downpayment < 20) {
+    return price * 0.028;
+  }
+
+  return 0;
 }

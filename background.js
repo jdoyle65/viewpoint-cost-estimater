@@ -11,7 +11,8 @@ chrome.runtime.onInstalled.addListener(function() {
     interest: 3.74,
     taxRate: 1.21,
     estimatedUtilities: 350,
-    period: 25
+    period: 25,
+    useAssessedValue: true
   };
 
   chrome.storage.sync.set(options, function() {
