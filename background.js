@@ -12,6 +12,7 @@ chrome.runtime.onInstalled.addListener(function() {
     taxRate: 1.21,
     estimatedUtilities: 350,
     period: 25,
+    currentMonthly: 1350,
     useAssessedValue: true
   };
 

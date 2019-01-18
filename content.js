@@ -1,6 +1,6 @@
 "use strict";
 
-const storageKeys = ['downpayment', 'interest', 'taxRate', 'estimatedUtilities', 'period', 'useAssessedValue'];
+const storageKeys = ['downpayment', 'interest', 'taxRate', 'estimatedUtilities', 'period', 'currentMonthly', 'useAssessedValue'];
 let cutsheet = document.documentElement.querySelector('.overview,#v3-cutsheet');
 const observer = new MutationObserver((mutations, observer) => updateCosts(mutations));
 
@@ -51,6 +51,7 @@ async function updateCosts(mutations) {
   const monthlyMortgage = monthlyElement.querySelector('div.monthly-mortgage');
   const monthlyTax = monthlyElement.querySelector('div.monthly-tax');
   const monthlyUtils = monthlyElement.querySelector('div.monthly-utils');
+  const monthlyDiff = monthlyElement.querySelector('div.monthly-diff');
   
   if (priceElement && priceElement.innerText !== undefined && monthlyElement) {
     const priceText = priceElement.innerText.split('\n')[0];
@@ -64,6 +65,7 @@ async function updateCosts(mutations) {
       monthlyMortgage.innerText = formatPrice(calculatedCost.mortgage);
       monthlyTax.innerText = formatPrice(calculatedCost.taxes);
       monthlyUtils.innerText = formatPrice(calculatedCost.utils);
+      monthlyDiff.innerText = formatPrice(calculatedCost.diffFromNow);
     }
   }
 }
@@ -78,7 +80,7 @@ async function calculateMonthlyCost(price, assessedValue) {
   return new Promise((resolve, reject) => {
     chrome.storage.sync.get(storageKeys, (data) => {
 
-      const { downpayment, interest, taxRate, estimatedUtilities, period, useAssessedValue } = data;
+      const { downpayment, interest, taxRate, estimatedUtilities, period, useAssessedValue, currentMonthly } = data;
 
       // Homes over $1 million are subject to 20% downpayment
       if (price > 1000000 && downpayment < 20) {
@@ -103,12 +105,14 @@ async function calculateMonthlyCost(price, assessedValue) {
       const mortgagePayment = calculateMortgagePayment(principal, years, interest);
       const taxes = (taxRate / 100 / 12) * ( useAssessedValue ? assessedValue : price);
       const utilities = estimatedUtilities;
-      
+      const total = mortgagePayment + taxes + utilities;
+
       return resolve({
-        total: mortgagePayment + taxes + utilities,
+        total: total,
         mortgage: mortgagePayment,
         taxes: taxes,
-        utils: estimatedUtilities
+        utils: estimatedUtilities,
+        diffFromNow: total - currentMonthly
       });
 
     });
@@ -135,6 +139,7 @@ function insertMonthlyElementIntoCutsheet(insertAfterElement) {
   insertRow(element, 'monthly-mortgage', 'Mortage:', '$0');
   insertRow(element, 'monthly-tax', 'Tax:', '$0');
   insertRow(element, 'monthly-utils', 'Utilities:', '$0');
+  insertRow(element, 'monthly-diff', 'Diff:', '$0');
 
   return element;
 }
@@ -177,7 +182,7 @@ function findAssessedValue(parentElement, defaultValue) {
      return parseAssessedValue(assessedValueElement.innerText);
    }
   }
-  
+
   return defaultValue;
 }
 
